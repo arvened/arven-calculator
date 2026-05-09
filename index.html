@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARVEN AUDIT — Финансовый калькулятор</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f0f4f8; color: #1a1a1a; }
+
+  .header { background: #1B3A6B; color: white; padding: 24px 20px 16px; text-align: center; }
+  .header h1 { font-size: 26px; letter-spacing: 1px; }
+  .header p { font-size: 13px; color: #a8c4e0; margin-top: 6px; font-style: italic; }
+
+  .tabs { display: flex; background: #152e56; }
+  .tab { flex: 1; padding: 12px 8px; text-align: center; font-size: 13px; font-weight: bold;
+    color: #a8c4e0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+  .tab.active { color: white; border-bottom-color: #2E86C1; background: #1B3A6B; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .container { max-width: 700px; margin: 0 auto; padding: 16px 16px 40px; }
+
+  .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+  .card-title { font-size: 13px; font-weight: bold; color: #2E86C1; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #EAF2FB; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; font-weight: bold; }
+  .field input[type="range"] { width: 100%; accent-color: #2E86C1; height: 6px; }
+  .field .val-display { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+  .field .val-display span { font-size: 22px; font-weight: bold; color: #1B3A6B; }
+  .field .val-display small { font-size: 12px; color: #999; }
+
+  .fee-badge { display: inline-block; background: #EAF2FB; color: #1B3A6B; font-size: 12px;
+    font-weight: bold; padding: 3px 10px; border-radius: 20px; margin-left: 8px; }
+
+  .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+  .result-box { border-radius: 10px; padding: 16px; text-align: center; }
+  .result-box.blue { background: #1B3A6B; color: white; }
+  .result-box.accent { background: #2E86C1; color: white; }
+  .result-box.green { background: #1A7A4A; color: white; }
+  .result-box.gray { background: #f5f5f5; color: #333; }
+  .result-box.red { background: #c0392b; color: white; }
+  .result-box.orange { background: #e67e22; color: white; }
+
+  .result-box .rb-label { font-size: 11px; opacity: 0.8; margin-bottom: 4px; text-transform: uppercase; }
+  .result-box .rb-value { font-size: 22px; font-weight: bold; }
+  .result-box .rb-sub { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+
+  .breakdown { background: #f8fbff; border-radius: 10px; overflow: hidden; border: 1px solid #dce8f5; }
+  .breakdown-row { display: flex; justify-content: space-between; align-items: center;
+    padding: 11px 16px; border-bottom: 1px solid #e8f0f8; font-size: 14px; }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-row.header-row { background: #1B3A6B; color: white; font-weight: bold; font-size: 13px; }
+  .breakdown-row.section-row { background: #EAF2FB; font-weight: bold; color: #1B3A6B; }
+  .breakdown-row.total-row { background: #1A7A4A; color: white; font-weight: bold; }
+  .breakdown-row.loss-row { background: #fff0f0; }
+  .breakdown-row .label { color: #555; }
+  .breakdown-row .amount { font-weight: bold; color: #1B3A6B; }
+  .breakdown-row .amount.green { color: #1A7A4A; }
+  .breakdown-row .amount.accent { color: #2E86C1; }
+  .breakdown-row .amount.red { color: #c0392b; }
+  .breakdown-row .amount.white { color: white; }
+
+  .scenario-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .scenario-btn { flex: 1; min-width: 120px; padding: 10px 8px; border: 2px solid #2E86C1;
+    background: white; color: #2E86C1; border-radius: 8px; font-size: 12px; font-weight: bold;
+    cursor: pointer; text-align: center; transition: all 0.2s; }
+  .scenario-btn:hover, .scenario-btn.active { background: #2E86C1; color: white; }
+
+  .note { font-size: 12px; color: #888; font-style: italic; text-align: center; margin-top: 8px; }
+
+  .costs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cost-item { background: #f8fbff; border: 1px solid #dce8f5; border-radius: 8px; padding: 12px; }
+  .cost-item .ci-who { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #2E86C1; margin-bottom: 4px; }
+  .cost-item .ci-what { font-size: 13px; color: #333; margin-bottom: 4px; }
+  .cost-item .ci-amt { font-size: 16px; font-weight: bold; color: #1B3A6B; }
+
+  .alert-box { border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; font-size: 13px; font-weight: bold; text-align: center; }
+  .alert-box.green { background: #E8F5EE; color: #1A7A4A; border: 1px solid #a8d5b8; }
+  .alert-box.red { background: #fff0f0; color: #c0392b; border: 1px solid #f5a8a8; }
+  .alert-box.orange { background: #fff8e1; color: #b8860b; border: 1px solid #f0d060; }
+
+  .info-row { display: flex; justify-content: space-between; padding: 8px 0;
+    border-bottom: 1px solid #f0f4f8; font-size: 13px; }
+  .info-row:last-child { border-bottom: none; }
+  .info-row .il { color: #666; }
+  .info-row .iv { font-weight: bold; color: #1B3A6B; }
+  .info-row .iv.green { color: #1A7A4A; }
+  .info-row .iv.red { color: #c0392b; }
+
+  .footer-note { text-align: center; font-size: 12px; color: #aaa; margin-top: 24px; }
+  .footer-note strong { color: #1B3A6B; }
+
+  @media (max-width: 480px) {
+    .result-box .rb-value { font-size: 18px; }
+    .costs-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>ARVEN AUDIT</h1>
+  <p>Финансовый калькулятор для партнёров — Good Just Happens</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('project')">📊 Проект</div>
+  <div class="tab" onclick="showTab('costs')">💰 Расходы</div>
+  <div class="tab" onclick="showTab('pnl')">📈 P&L</div>
+  <div class="tab" onclick="showTab('growth')">🚀 Рост</div>
+</div>
+
+<!-- TAB 1: ПРОЕКТ -->
+<div id="tab-project" class="tab-content active">
+<div class="container">
+
+  <div class="card">
+    <div class="card-title">Быстрый старт — выбери сценарий</div>
+    <div class="scenario-btns">
+      <button class="scenario-btn" onclick="setScenario(10000,20)">🏪 Малый ритейл<br><small>€10K дельта</small></button>
+      <button class="scenario-btn" onclick="setScenario(30000,25)">🏭 Производство<br><small>€30K дельта</small></button>
+      <button class="scenario-btn active" onclick="setScenario(50000,25)">🏢 Mittelstand<br><small>€50K дельта</small></button>
+      <button class="scenario-btn" onclick="setScenario(150000,30)">💼 Крупный холдинг<br><small>€150K дельта</small></button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Параметры проекта</div>
+
+    <div class="field">
+      <label>Подтверждённая дельта клиента (экономия / прибыль)</label>
+      <input type="range" id="delta" min="5000" max="200000" step="1000" value="50000" oninput="calc()">
+      <div class="val-display"><span id="deltaVal">€50,000</span><small>мин €5K — макс €200K</small></div>
+    </div>
+
+    <div class="field">
+      <label>% Success Fee ARVEN с клиента <span class="fee-badge" id="feeTier">Стандарт</span></label>
+      <input type="range" id="feePct" min="10" max="35" step="5" value="25" oninput="calc()">
+      <div class="val-display"><span id="feePctVal">25%</span><small>от дельты клиента</small></div>
+      <div style="font-size:11px;color:#999;margin-top:4px;">Шкала: до €10K = 20% · €10K–€50K = 25% · свыше €50K = 30%</div>
+    </div>
+
+    <div class="field">
+      <label>% партнёра от Success Fee</label>
+      <input type="range" id="partnerPct" min="10" max="50" step="5" value="30" oninput="calc()">
+      <div class="val-display"><span id="partnerPctVal">30%</span><small>от суммы Success Fee</small></div>
+    </div>
+
+    <div class="field">
+      <label>Количество активных клиентов</label>
+      <input type="range" id="clients" min="1" max="20" step="1" value="3" oninput="calc()">
+      <div class="val-display"><span id="clientsVal">3 клиента</span><small>одновременно</small></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Результат — один клиент</div>
+    <div class="results-grid">
+      <div class="result-box blue">
+        <div class="rb-label">Success Fee (total)</div>
+        <div class="rb-value" id="totalFee">€12,500</div>
+        <div class="rb-sub">от дельты клиента</div>
+      </div>
+      <div class="result-box accent">
+        <div class="rb-label">Доход партнёра</div>
+        <div class="rb-value" id="partnerIncome">€3,750</div>
+        <div class="rb-sub">за один проект</div>
+      </div>
+      <div class="result-box green">
+        <div class="rb-label">Доход ARVEN (gross)</div>
+        <div class="rb-value" id="arvenGross">€8,750</div>
+        <div class="rb-sub">до расходов</div>
+      </div>
+      <div class="result-box gray">
+        <div class="rb-label">Клиент сохраняет</div>
+        <div class="rb-value" id="clientKeeps">€37,500</div>
+        <div class="rb-sub" id="clientKeepsPctLabel">75% от дельты</div>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;">
+      <div style="font-size:12px;color:#777;margin-bottom:4px;">Распределение Success Fee</div>
+      <div style="display:flex;gap:4px;height:18px;border-radius:6px;overflow:hidden;">
+        <div id="barPartner" style="background:#2E86C1;transition:width 0.4s;display:flex;align-items:center;justify-content:center;">
+          <span style="color:white;font-size:10px;font-weight:bold;" id="barPartnerLabel">30%</span>
+        </div>
+        <div id="barArven" style="background:#1B3A6B;flex:1;display:flex;align-items:center;justify-content:center;">
+          <span style="color:white;font-size:10px;font-weight:bold;" id="barArvenLabel">70%</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <small style="color:#2E86C1;font-size:11px;">● Партнёр</small>
+        <small style="color:#1B3A6B;font-size:11px;">● ARVEN ●</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Портфель партнёра</div>
+    <div class="results-grid">
+      <div class="result-box accent">
+        <div class="rb-label">Доход за портфель</div>
+        <div class="rb-value" id="portfolioIncome">€11,250</div>
+        <div class="rb-sub" id="portfolioSub">3 × €3,750</div>
+      </div>
+      <div class="result-box blue">
+        <div class="rb-label">Годовой потенциал</div>
+        <div class="rb-value" id="annualIncome">€45,000</div>
+        <div class="rb-sub">4 цикла в год</div>
+      </div>
+    </div>
+    <p class="note">* Каждый клиент проходит 1 цикл (30 дней) в квартал</p>
+  </div>
+
+</div>
+</div>
+
+<!-- TAB 2: РАСХОДЫ -->
+<div id="tab-costs" class="tab-content">
+<div class="container">
+
+  <div class="card">
+    <div class="card-title">Операционные расходы ARVEN — на 1 проект</div>
+    <div class="info-row"><span class="il">Настройка системы мониторинга</span><span class="iv red">€150–300</span></div>
+    <div class="info-row"><span class="il">30 дней мониторинга (данные, инфра)</span><span class="iv red">€100–200</span></div>
+    <div class="info-row"><span class="il">Подготовка сравнительного отчёта</span><span class="iv red">€50–100</span></div>
+    <div class="info-row"><span class="il"><strong>Итого на 1 проект</strong></span><span class="iv red"><strong>€300–600</strong></span></div>
+    <p class="note" style="margin-top:10px;">* На основе бенчмарков EU AI/SaaS рынка 2025–2026</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Постоянные расходы ARVEN — в месяц</div>
+    <div class="info-row"><span class="il">VPS хостинг + инфраструктура</span><span class="iv red">€50–100</span></div>
+    <div class="info-row"><span class="il">AI инструменты и data-сервисы</span><span class="iv red">€100–200</span></div>
+    <div class="info-row"><span class="il">Payoneer / Stripe комиссии (~2%)</span><span class="iv red">€50–150</span></div>
+    <div class="info-row"><span class="il">Estonian OÜ (юр. адрес, бухгалтерия)</span><span class="iv red">€80–120</span></div>
+    <div class="info-row"><span class="il">Прочее (домен, связь, инструменты)</span><span class="iv red">€30–50</span></div>
+    <div class="info-row"><span class="il"><strong>Итого в месяц</strong></span><span class="iv red"><strong>€310–620</strong></span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Расходы партнёра на привлечение 1 клиента</div>
+    <div class="info-row"><span class="il">LinkedIn (органика + Sales Navigator)</span><span class="iv orange">€80–120/мес</span></div>
+    <div class="info-row"><span class="il">Cold email инструменты</span><span class="iv orange">€30–50/мес</span></div>
+    <div class="info-row"><span class="il">Встречи, транспорт (на 1 клиента)</span><span class="iv orange">€50–150</span></div>
+    <div class="info-row"><span class="il">LinkedIn Ads (если используются)</span><span class="iv orange">€60–120/лид</span></div>
+    <div class="info-row"><span class="il"><strong>Итого на 1 закрытого клиента</strong></span><span class="iv orange"><strong>€200–500</strong></span></div>
+    <p class="note" style="margin-top:10px;">* EU LinkedIn B2B CPL benchmark 2025–2026: €60–200/лид · конверсия лид→клиент: 10–20%</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Кто несёт что</div>
+    <div class="costs-grid">
+      <div class="cost-item">
+        <div class="ci-who">🇺🇦 ARVEN</div>
+        <div class="ci-what">Настройка + мониторинг + отчёт</div>
+        <div class="ci-amt" style="color:#c0392b">€300–600 / проект</div>
+      </div>
+      <div class="cost-item">
+        <div class="ci-who">🇺🇦 ARVEN</div>
+        <div class="ci-what">Постоянные расходы</div>
+        <div class="ci-amt" style="color:#c0392b">€310–620 / мес</div>
+      </div>
+      <div class="cost-item">
+        <div class="ci-who">🤝 Партнёр</div>
+        <div class="ci-what">Привлечение клиента</div>
+        <div class="ci-amt" style="color:#e67e22">€200–500 / клиент</div>
+      </div>
+      <div class="cost-item" style="background:#fff8e1;border-color:#f0d060;">
+        <div class="ci-who" style="color:#b8860b;">⚠️ Клиент</div>
+        <div class="ci-what">Предоплата</div>
+        <div class="ci-amt" style="color:#1A7A4A">€0</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- TAB 3: P&L -->
+<div id="tab-pnl" class="tab-content">
+<div class="container">
+
+  <div class="card">
+    <div class="card-title">P&L калькулятор — выбери параметры</div>
+
+    <div class="field">
+      <label>Дельта клиента</label>
+      <input type="range" id="pnl_delta" min="5000" max="200000" step="1000" value="50000" oninput="calcPnl()">
+      <div class="val-display"><span id="pnl_deltaVal">€50,000</span></div>
+    </div>
+
+    <div class="field">
+      <label>% Success Fee</label>
+      <input type="range" id="pnl_fee" min="10" max="35" step="5" value="25" oninput="calcPnl()">
+      <div class="val-display"><span id="pnl_feeVal">25%</span></div>
+    </div>
+
+    <div class="field">
+      <label>Операционные расходы ARVEN на проект</label>
+      <input type="range" id="pnl_opex" min="100" max="1000" step="50" value="450" oninput="calcPnl()">
+      <div class="val-display"><span id="pnl_opexVal">€450</span><small>средн. €300–600</small></div>
+    </div>
+
+    <div class="field">
+      <label>Постоянные расходы ARVEN в месяц</label>
+      <input type="range" id="pnl_fixed" min="200" max="1500" step="50" value="465" oninput="calcPnl()">
+      <div class="val-display"><span id="pnl_fixedVal">€465</span><small>средн. €310–620</small></div>
+    </div>
+
+    <div class="field">
+      <label>Активных клиентов одновременно</label>
+      <input type="range" id="pnl_clients" min="1" max="20" step="1" value="3" oninput="calcPnl()">
+      <div class="val-display"><span id="pnl_clientsVal">3 клиента</span></div>
+    </div>
+  </div>
+
+  <div id="pnl_alert" class="alert-box green">✅ Проект прибыльный</div>
+
+  <div class="card">
+    <div class="card-title">P&L — ARVEN (на портфель)</div>
+    <div class="breakdown">
+      <div class="breakdown-row header-row"><span>Статья</span><span class="amount white">Сумма</span></div>
+      <div class="breakdown-row section-row"><span>ДОХОДЫ</span><span></span></div>
+      <div class="breakdown-row"><span class="label">Success Fee (gross)</span><span class="amount" id="pnl_grossFee">€37,500</span></div>
+      <div class="breakdown-row"><span class="label">— Доля партнёра (30%)</span><span class="amount red" id="pnl_partnerShare">-€11,250</span></div>
+      <div class="breakdown-row"><span class="label"><strong>Выручка ARVEN (net)</strong></span><span class="amount green" id="pnl_arvenNet"><strong>€26,250</strong></span></div>
+      <div class="breakdown-row section-row"><span>РАСХОДЫ</span><span></span></div>
+      <div class="breakdown-row loss-row"><span class="label">Операционные (3 проекта)</span><span class="amount red" id="pnl_totalOpex">-€1,350</span></div>
+      <div class="breakdown-row loss-row"><span class="label">Постоянные (1 месяц)</span><span class="amount red" id="pnl_totalFixed">-€465</span></div>
+      <div class="breakdown-row loss-row"><span class="label">Итого расходы</span><span class="amount red" id="pnl_totalCosts">-€1,815</span></div>
+      <div class="breakdown-row total-row"><span>ЧИСТАЯ ПРИБЫЛЬ ARVEN</span><span class="amount white" id="pnl_net">€24,435</span></div>
+    </div>
+    <p class="note" style="margin-top:8px;">Маржа ARVEN: <strong id="pnl_margin">65%</strong> от выручки</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">P&L — Партнёр (на портфель)</div>
+    <div class="breakdown">
+      <div class="breakdown-row header-row"><span>Статья</span><span class="amount white">Сумма</span></div>
+      <div class="breakdown-row"><span class="label">Доход от Success Fee</span><span class="amount green" id="pnl_partnerIncome">€11,250</span></div>
+      <div class="breakdown-row loss-row"><span class="label">Расходы на привлечение клиентов</span><span class="amount red" id="pnl_partnerCosts">-€1,050</span></div>
+      <div class="breakdown-row total-row"><span>ЧИСТЫЙ ДОХОД ПАРТНЁРА</span><span class="amount white" id="pnl_partnerNet">€10,200</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Точка безубыточности ARVEN</div>
+    <div class="info-row"><span class="il">Мин. Success Fee для покрытия расходов</span><span class="iv" id="breakeven_fee">€815</span></div>
+    <div class="info-row"><span class="il">Мин. дельта клиента для безубыточности</span><span class="iv" id="breakeven_delta">€3,260</span></div>
+    <div class="info-row"><span class="il">Мин. клиентов в месяц</span><span class="iv" id="breakeven_clients">1 клиент</span></div>
+  </div>
+
+</div>
+</div>
+
+<!-- TAB 4: РОСТ -->
+<div id="tab-growth" class="tab-content">
+<div class="container">
+
+  <div class="card">
+    <div class="card-title">Прогноз роста портфеля партнёра</div>
+
+    <div class="field">
+      <label>Дельта клиента (средняя)</label>
+      <input type="range" id="g_delta" min="5000" max="200000" step="1000" value="50000" oninput="calcGrowth()">
+      <div class="val-display"><span id="g_deltaVal">€50,000</span></div>
+    </div>
+
+    <div class="field">
+      <label>Новых клиентов в квартал</label>
+      <input type="range" id="g_newClients" min="1" max="10" step="1" value="2" oninput="calcGrowth()">
+      <div class="val-display"><span id="g_newClientsVal">2 клиента/кв</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Прогноз дохода партнёра по кварталам</div>
+    <div class="breakdown">
+      <div class="breakdown-row header-row"><span>Период</span><span class="amount white">Клиентов</span><span class="amount white">Доход</span></div>
+      <div class="breakdown-row"><span class="label">Q1</span><span class="amount" id="g_q1c">2</span><span class="amount accent" id="g_q1i">€7,500</span></div>
+      <div class="breakdown-row"><span class="label">Q2</span><span class="amount" id="g_q2c">4</span><span class="amount accent" id="g_q2i">€15,000</span></div>
+      <div class="breakdown-row"><span class="label">Q3</span><span class="amount" id="g_q3c">6</span><span class="amount accent" id="g_q3i">€22,500</span></div>
+      <div class="breakdown-row total-row"><span>Q4 (год)</span><span class="amount white" id="g_q4c">8</span><span class="amount white" id="g_q4i">€30,000</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Итог за 12 месяцев</div>
+    <div class="results-grid">
+      <div class="result-box blue">
+        <div class="rb-label">Всего клиентов</div>
+        <div class="rb-value" id="g_totalClients">8</div>
+        <div class="rb-sub">за год</div>
+      </div>
+      <div class="result-box green">
+        <div class="rb-label">Доход партнёра</div>
+        <div class="rb-value" id="g_totalIncome">€75,000</div>
+        <div class="rb-sub">за год</div>
+      </div>
+    </div>
+    <p class="note">* При условии что каждый клиент активен весь год (4 цикла)</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">LinkedIn стратегия — стоимость привлечения</div>
+    <div class="info-row"><span class="il">CPL LinkedIn EU (органика)</span><span class="iv green">€0–50</span></div>
+    <div class="info-row"><span class="il">CPL LinkedIn EU (платная реклама)</span><span class="iv orange">€60–120</span></div>
+    <div class="info-row"><span class="il">Конверсия лид → клиент (B2B EU)</span><span class="iv">10–20%</span></div>
+    <div class="info-row"><span class="il">Стоимость закрытого клиента</span><span class="iv orange">€200–500</span></div>
+    <div class="info-row"><span class="il">ROI на привлечение (при €50K дельте)</span><span class="iv green">750–1,800%</span></div>
+    <p class="note" style="margin-top:8px;">* Источник: EU LinkedIn B2B Benchmarks 2025–2026</p>
+  </div>
+
+</div>
+</div>
+
+<div class="container">
+  <div class="footer-note">
+    <strong>ARVEN AUDIT</strong> · arvend.io · hello@arvend.io · @arven_agency<br>
+    <em>Good Just Happens</em>
+  </div>
+</div>
+
+<script>
+function fmt(n) { return '€' + Math.round(n).toLocaleString('de-DE'); }
+function clStr(n) { return n + (n===1?' клиент':n<5?' клиента':' клиентов'); }
+
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function calc() {
+  const delta = parseInt(document.getElementById('delta').value);
+  const feePct = parseInt(document.getElementById('feePct').value);
+  const partnerPct = parseInt(document.getElementById('partnerPct').value);
+  const clients = parseInt(document.getElementById('clients').value);
+
+  const fee = delta * feePct / 100;
+  const partnerIncome = fee * partnerPct / 100;
+  const arvenGross = fee - partnerIncome;
+  const clientKeeps = delta - fee;
+  const ckPct = Math.round(clientKeeps / delta * 100);
+
+  let tier = delta < 10000 ? '↓ Рекомендуем 20%' : delta <= 50000 ? 'Стандарт 25%' : '↑ Премиум 30%';
+  document.getElementById('feeTier').textContent = tier;
+  document.getElementById('deltaVal').textContent = fmt(delta);
+  document.getElementById('feePctVal').textContent = feePct + '%';
+  document.getElementById('partnerPctVal').textContent = partnerPct + '%';
+  document.getElementById('clientsVal').textContent = clStr(clients);
+  document.getElementById('totalFee').textContent = fmt(fee);
+  document.getElementById('partnerIncome').textContent = fmt(partnerIncome);
+  document.getElementById('arvenGross').textContent = fmt(arvenGross);
+  document.getElementById('clientKeeps').textContent = fmt(clientKeeps);
+  document.getElementById('clientKeepsPctLabel').textContent = ckPct + '% от дельты';
+  document.getElementById('portfolioIncome').textContent = fmt(partnerIncome * clients);
+  document.getElementById('portfolioSub').textContent = clients + ' × ' + fmt(partnerIncome);
+  document.getElementById('annualIncome').textContent = fmt(partnerIncome * clients * 4);
+  document.getElementById('barPartner').style.width = partnerPct + '%';
+  document.getElementById('barPartnerLabel').textContent = partnerPct + '%';
+  document.getElementById('barArvenLabel').textContent = (100-partnerPct) + '%';
+}
+
+function calcPnl() {
+  const delta = parseInt(document.getElementById('pnl_delta').value);
+  const feePct = parseInt(document.getElementById('pnl_fee').value);
+  const opex = parseInt(document.getElementById('pnl_opex').value);
+  const fixed = parseInt(document.getElementById('pnl_fixed').value);
+  const clients = parseInt(document.getElementById('pnl_clients').value);
+
+  const grossFee = delta * feePct / 100 * clients;
+  const partnerShare = grossFee * 0.30;
+  const arvenNet = grossFee - partnerShare;
+  const totalOpex = opex * clients;
+  const totalCosts = totalOpex + fixed;
+  const net = arvenNet - totalCosts;
+  const margin = arvenNet > 0 ? Math.round(net / arvenNet * 100) : 0;
+
+  const partnerIncome = grossFee * 0.30;
+  const partnerAcqCost = 350 * clients;
+  const partnerNet = partnerIncome - partnerAcqCost;
+
+  const beeFee = fixed + opex;
+  const beeDelta = Math.round(beeFee / (feePct/100) / 0.70);
+
+  document.getElementById('pnl_deltaVal').textContent = fmt(delta);
+  document.getElementById('pnl_feeVal').textContent = feePct + '%';
+  document.getElementById('pnl_opexVal').textContent = fmt(opex);
+  document.getElementById('pnl_fixedVal').textContent = fmt(fixed);
+  document.getElementById('pnl_clientsVal').textContent = clStr(clients);
+
+  document.getElementById('pnl_grossFee').textContent = fmt(grossFee);
+  document.getElementById('pnl_partnerShare').textContent = '-' + fmt(partnerShare);
+  document.getElementById('pnl_arvenNet').textContent = fmt(arvenNet);
+  document.getElementById('pnl_totalOpex').textContent = '-' + fmt(totalOpex);
+  document.getElementById('pnl_totalFixed').textContent = '-' + fmt(fixed);
+  document.getElementById('pnl_totalCosts').textContent = '-' + fmt(totalCosts);
+  document.getElementById('pnl_net').textContent = fmt(net);
+  document.getElementById('pnl_margin').textContent = margin + '%';
+
+  document.getElementById('pnl_partnerIncome').textContent = fmt(partnerIncome);
+  document.getElementById('pnl_partnerCosts').textContent = '-' + fmt(partnerAcqCost);
+  document.getElementById('pnl_partnerNet').textContent = fmt(partnerNet);
+
+  document.getElementById('breakeven_fee').textContent = fmt(beeFee);
+  document.getElementById('breakeven_delta').textContent = fmt(beeDelta);
+  document.getElementById('breakeven_clients').textContent = '1 клиент';
+
+  const alert = document.getElementById('pnl_alert');
+  if (net > 0) {
+    alert.className = 'alert-box green';
+    alert.textContent = '✅ Проект прибыльный · Маржа ARVEN: ' + margin + '%';
+  } else {
+    alert.className = 'alert-box red';
+    alert.textContent = '⚠️ Убыток · Увеличь дельту или снизь расходы';
+  }
+}
+
+function calcGrowth() {
+  const delta = parseInt(document.getElementById('g_delta').value);
+  const newPerQ = parseInt(document.getElementById('g_newClients').value);
+  const income1 = delta * 0.25 * 0.30;
+
+  document.getElementById('g_deltaVal').textContent = fmt(delta);
+  document.getElementById('g_newClientsVal').textContent = newPerQ + ' кл/кв';
+
+  const q = [newPerQ, newPerQ*2, newPerQ*3, newPerQ*4];
+  ['q1','q2','q3','q4'].forEach((id,i) => {
+    document.getElementById('g_'+id+'c').textContent = q[i];
+    document.getElementById('g_'+id+'i').textContent = fmt(q[i] * income1);
+  });
+
+  const totalClients = newPerQ * 4;
+  document.getElementById('g_totalClients').textContent = totalClients;
+  document.getElementById('g_totalIncome').textContent = fmt(totalClients * income1 * 4);
+}
+
+function setScenario(delta, fee) {
+  document.getElementById('delta').value = delta;
+  document.getElementById('feePct').value = fee;
+  document.getElementById('pnl_delta').value = delta;
+  document.getElementById('pnl_fee').value = fee;
+  document.getElementById('g_delta').value = delta;
+  document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+  event.target.closest('.scenario-btn').classList.add('active');
+  calc(); calcPnl(); calcGrowth();
+}
+
+calc(); calcPnl(); calcGrowth();
+</script>
+</body>
+</html
